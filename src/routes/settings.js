@@ -1,5 +1,6 @@
 const express = require('express');
 const { getAllSettings, setSettings } = require('../db');
+const { invalidateCache } = require('../liveData');
 
 const router = express.Router();
 
@@ -43,6 +44,7 @@ router.post('/', (req, res) => {
     }
   }
   setSettings(toSave);
+  invalidateCache();
   res.json({ ok: true });
 });
 

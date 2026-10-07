@@ -62,6 +62,12 @@ function filterBySource(items, sourceIdSet) {
 const CACHE_TTL_MS = 60 * 1000;
 let cache = null; // { key, expiresAt, promise }
 
+// Вызывается при изменении сайтов/настроек, чтобы следующий запрос дашборда/чата не отдал
+// устаревший снимок (например, только что добавленную цель Метрики или сайт).
+function invalidateCache() {
+  cache = null;
+}
+
 async function getLiveSnapshot({ dateFrom, dateTo } = {}) {
   const defaults = defaultRange(7);
   dateFrom = dateFrom || defaults.dateFrom;
@@ -98,11 +104,12 @@ async function computeLiveSnapshot(dateFrom, dateTo) {
     settings.direct_token
       ? collectDirect({ token: settings.direct_token, login: settings.direct_login, dateFrom, dateTo })
       : Promise.reject(new NotConfiguredError()),
-    ...sites.map((site) =>
-      site.metrika_counter_id && settings.metrika_token
-        ? collectMetrika({ token: settings.metrika_token, counterId: site.metrika_counter_id, dateFrom, dateTo })
-        : Promise.reject(new NotConfiguredError())
-    ),
+    ...sites.map((site) => {
+      const goalIds = String(site.metrika_goal_ids || '').split(',').map((s) => s.trim()).filter(Boolean);
+      return site.metrika_counter_id && settings.metrika_token
+        ? collectMetrika({ token: settings.metrika_token, counterId: site.metrika_counter_id, dateFrom, dateTo, goalIds })
+        : Promise.reject(new NotConfiguredError());
+    }),
   ]);
 
   const raw = b24Raw.status === 'fulfilled' ? b24Raw.value : null;
@@ -165,4 +172,4 @@ async function computeLiveSnapshot(dateFrom, dateTo) {
   };
 }
 
-module.exports = { getLiveSnapshot };
+module.exports = { getLiveSnapshot, invalidateCache };

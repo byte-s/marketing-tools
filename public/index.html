@@ -180,6 +180,14 @@
         </div>
         <p class="text-xs text-slate-400 mt-1">Если не выбрано — раздел CRM в детальном дашборде сайта будет недоступен.</p>
 
+        <div class="flex items-center justify-between mt-3">
+          <label class="field-label mt-0">Цели Метрики для отслеживания конверсий</label>
+          <button id="site-load-goals" class="text-xs text-blue-600 underline">Загрузить список целей</button>
+        </div>
+        <div id="site-goals-list" class="text-sm space-y-1 border border-slate-200 rounded p-2 bg-slate-50 max-h-48 overflow-y-auto">
+          <p class="text-slate-400 text-xs">Сначала укажите ID счётчика выше, затем нажмите «Загрузить список целей» — так видно, что происходит между визитом и заявкой в CRM.</p>
+        </div>
+
         <div class="flex gap-2 mt-3">
           <button id="site-form-save" class="btn-primary">Сохранить сайт</button>
           <button id="site-form-cancel" class="btn-secondary hidden">Отменить редактирование</button>
@@ -222,6 +230,11 @@
           <h3 class="card-title-sm">Лиды по источникам (CRM)</h3>
           <canvas id="detail-chart-leads-source" height="140"></canvas>
         </div>
+      </div>
+
+      <div class="card p-3">
+        <h3 class="card-title-sm">Цели Метрики (конверсии на сайте)</h3>
+        <div id="detail-goals" class="text-sm space-y-1"></div>
       </div>
 
       <div class="grid md:grid-cols-2 gap-3">

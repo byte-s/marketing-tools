@@ -66,6 +66,14 @@ try {
   // колонка уже существует
 }
 
+// Список ID целей Яндекс.Метрики, конверсии по которым отслеживаем для этого сайта
+// (например, «Отправка формы», «Клик по телефону») — закрывает разрыв между визитом и лидом в CRM.
+try {
+  db.exec('ALTER TABLE sites ADD COLUMN metrika_goal_ids TEXT');
+} catch {
+  // колонка уже существует
+}
+
 // Миграция: если есть старые глобальные настройки счётчика/сайта, а таблица sites пустая — создаём из них первый сайт.
 function migrateLegacySiteSettings() {
   const hasSites = db.prepare('SELECT COUNT(*) AS c FROM sites').get().c > 0;
@@ -215,20 +223,29 @@ function getSite(id) {
   return db.prepare('SELECT * FROM sites WHERE id = ?').get(id) || null;
 }
 
-function createSite({ name, metrikaCounterId, siteOwnUrls, siteSitemapUrl, siteCompetitorUrls, bitrix24SourceIds }) {
+function createSite({ name, metrikaCounterId, siteOwnUrls, siteSitemapUrl, siteCompetitorUrls, bitrix24SourceIds, metrikaGoalIds }) {
   const stmt = db.prepare(`
-    INSERT INTO sites (name, metrika_counter_id, site_own_urls, site_sitemap_url, site_competitor_urls, bitrix24_source_ids, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sites (name, metrika_counter_id, site_own_urls, site_sitemap_url, site_competitor_urls, bitrix24_source_ids, metrika_goal_ids, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const r = stmt.run(name, metrikaCounterId || '', siteOwnUrls || '', siteSitemapUrl || '', siteCompetitorUrls || '', bitrix24SourceIds || '', new Date().toISOString());
+  const r = stmt.run(
+    name,
+    metrikaCounterId || '',
+    siteOwnUrls || '',
+    siteSitemapUrl || '',
+    siteCompetitorUrls || '',
+    bitrix24SourceIds || '',
+    metrikaGoalIds || '',
+    new Date().toISOString()
+  );
   return Number(r.lastInsertRowid);
 }
 
-function updateSite(id, { name, metrikaCounterId, siteOwnUrls, siteSitemapUrl, siteCompetitorUrls, bitrix24SourceIds }) {
+function updateSite(id, { name, metrikaCounterId, siteOwnUrls, siteSitemapUrl, siteCompetitorUrls, bitrix24SourceIds, metrikaGoalIds }) {
   db.prepare(`
-    UPDATE sites SET name = ?, metrika_counter_id = ?, site_own_urls = ?, site_sitemap_url = ?, site_competitor_urls = ?, bitrix24_source_ids = ?
+    UPDATE sites SET name = ?, metrika_counter_id = ?, site_own_urls = ?, site_sitemap_url = ?, site_competitor_urls = ?, bitrix24_source_ids = ?, metrika_goal_ids = ?
     WHERE id = ?
-  `).run(name, metrikaCounterId || '', siteOwnUrls || '', siteSitemapUrl || '', siteCompetitorUrls || '', bitrix24SourceIds || '', id);
+  `).run(name, metrikaCounterId || '', siteOwnUrls || '', siteSitemapUrl || '', siteCompetitorUrls || '', bitrix24SourceIds || '', metrikaGoalIds || '', id);
 }
 
 function deleteSite(id) {

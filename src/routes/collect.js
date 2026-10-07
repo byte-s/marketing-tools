@@ -1,9 +1,10 @@
 const express = require('express');
 const { getAllSettings, insertCollectedData, listCollectedData, getCollectedData, getSite } = require('../db');
 const { collectBitrix24, fetchFunnels, fetchSources } = require('../integrations/bitrix24');
-const { collectMetrika } = require('../integrations/metrika');
+const { collectMetrika, fetchGoals } = require('../integrations/metrika');
 const { collectDirect } = require('../integrations/direct');
 const { collectSiteAudit } = require('../integrations/site');
+const { invalidateCache } = require('../liveData');
 
 const router = express.Router();
 
@@ -45,6 +46,18 @@ router.get('/bitrix24/sources', async (req, res) => {
   }
 });
 
+router.get('/metrika/goals', async (req, res) => {
+  try {
+    const settings = getAllSettings();
+    const counterId = req.query.counterId;
+    if (!counterId) return res.status(400).json({ error: 'Не передан ID счётчика' });
+    const goals = await fetchGoals(settings.metrika_token, counterId);
+    res.json(goals);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.post('/bitrix24', async (req, res) => {
   try {
     const settings = getAllSettings();
@@ -74,14 +87,16 @@ router.post('/metrika', async (req, res) => {
 
     let counterId = settings.metrika_counter_id;
     let siteName = '';
+    let goalIds = [];
     if (siteId) {
       const site = getSite(Number(siteId));
       if (!site) return res.status(404).json({ error: 'Сайт не найден' });
       counterId = site.metrika_counter_id;
       siteName = site.name;
+      goalIds = String(site.metrika_goal_ids || '').split(',').map((s) => s.trim()).filter(Boolean);
     }
 
-    const data = await collectMetrika({ token: settings.metrika_token, counterId, dateFrom, dateTo });
+    const data = await collectMetrika({ token: settings.metrika_token, counterId, dateFrom, dateTo, goalIds });
     const id = insertCollectedData({
       source: 'metrika',
       label: `Метрика${siteName ? ` [${siteName}]` : ''} ${dateFrom}..${dateTo}`,
@@ -147,6 +162,7 @@ router.post('/site', async (req, res) => {
       data,
       siteId: siteId ? Number(siteId) : null,
     });
+    invalidateCache();
     res.json({ id, data });
   } catch (err) {
     res.status(400).json({ error: err.message });

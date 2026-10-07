@@ -177,6 +177,7 @@ async function fetchSites() {
 }
 
 let selectedSiteSourceIds = new Set();
+let selectedSiteGoalIds = new Set();
 
 function resetSiteForm() {
   $('site-form-id').value = '';
@@ -189,6 +190,8 @@ function resetSiteForm() {
   $('site-form-cancel').classList.add('hidden');
   selectedSiteSourceIds = new Set();
   $('site-sources-list').innerHTML = '<p class="text-slate-400 text-xs">Нажмите «Загрузить список источников», чтобы выбрать, какие лиды/сделки Bitrix24 относятся к этому сайту.</p>';
+  selectedSiteGoalIds = new Set();
+  $('site-goals-list').innerHTML = '<p class="text-slate-400 text-xs">Сначала укажите ID счётчика выше, затем нажмите «Загрузить список целей».</p>';
 }
 
 function renderSiteSourcesList(sources) {
@@ -220,6 +223,46 @@ $('site-load-sources').addEventListener('click', async () => {
     renderSiteSourcesList(json);
   } catch (err) {
     $('site-sources-list').innerHTML = `<p class="text-red-600 text-xs">Ошибка: ${escapeHtml(err.message)}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevText;
+  }
+});
+
+function renderSiteGoalsList(goals) {
+  const container = $('site-goals-list');
+  if (goals.length === 0) {
+    container.innerHTML = '<p class="text-slate-400 text-xs">Цели не найдены — создайте их в интерфейсе Метрики.</p>';
+    return;
+  }
+  container.innerHTML = goals
+    .map(
+      (g) => `
+    <label class="flex items-center gap-2">
+      <input type="checkbox" value="${g.id}" ${selectedSiteGoalIds.has(g.id) ? 'checked' : ''} />
+      <span>${escapeHtml(g.name)}</span>
+    </label>`
+    )
+    .join('');
+}
+
+$('site-load-goals').addEventListener('click', async () => {
+  const counterId = $('site-form-counter').value.trim();
+  if (!counterId) {
+    $('site-goals-list').innerHTML = '<p class="text-red-600 text-xs">Сначала укажите ID счётчика Метрики выше.</p>';
+    return;
+  }
+  const btn = $('site-load-goals');
+  btn.disabled = true;
+  const prevText = btn.textContent;
+  btn.textContent = 'Загрузка…';
+  try {
+    const res = await fetch(`/api/collect/metrika/goals?counterId=${encodeURIComponent(counterId)}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error);
+    renderSiteGoalsList(json);
+  } catch (err) {
+    $('site-goals-list').innerHTML = `<p class="text-red-600 text-xs">Ошибка: ${escapeHtml(err.message)}</p>`;
   } finally {
     btn.disabled = false;
     btn.textContent = prevText;
@@ -264,6 +307,10 @@ async function loadSites() {
       $('site-sources-list').innerHTML = selectedSiteSourceIds.size
         ? `<p class="text-slate-500 text-xs">Выбрано источников: ${selectedSiteSourceIds.size}. Нажмите «Загрузить список источников», чтобы изменить.</p>`
         : '<p class="text-slate-400 text-xs">Нажмите «Загрузить список источников», чтобы выбрать, какие лиды/сделки Bitrix24 относятся к этому сайту.</p>';
+      selectedSiteGoalIds = new Set(String(site.metrika_goal_ids || '').split(',').map((s) => s.trim()).filter(Boolean));
+      $('site-goals-list').innerHTML = selectedSiteGoalIds.size
+        ? `<p class="text-slate-500 text-xs">Выбрано целей: ${selectedSiteGoalIds.size}. Нажмите «Загрузить список целей», чтобы изменить.</p>`
+        : '<p class="text-slate-400 text-xs">Сначала укажите ID счётчика выше, затем нажмите «Загрузить список целей».</p>';
     })
   );
 
@@ -292,6 +339,12 @@ $('site-form-save').addEventListener('click', async () => {
   } else if (selectedSiteSourceIds.size > 0) {
     // Список источников не перезагружали в этой сессии — сохраняем то, что уже было выбрано ранее.
     payload.bitrix24SourceIds = [...selectedSiteSourceIds].join(',');
+  }
+  const goalCheckboxes = document.querySelectorAll('#site-goals-list input[type="checkbox"]');
+  if (goalCheckboxes.length > 0) {
+    payload.metrikaGoalIds = [...goalCheckboxes].filter((cb) => cb.checked).map((cb) => cb.value).join(',');
+  } else if (selectedSiteGoalIds.size > 0) {
+    payload.metrikaGoalIds = [...selectedSiteGoalIds].join(',');
   }
   if (!payload.name) {
     alert('Укажите название сайта');
@@ -618,6 +671,32 @@ function renderSiteDetailCharts(site) {
   }
 }
 
+function renderSiteGoals(site) {
+  const el = $('detail-goals');
+  if (!site.metrika.configured) {
+    el.innerHTML = '<p class="text-slate-500">Метрика не настроена для этого сайта.</p>';
+    return;
+  }
+  if (!site.metrika.ok) {
+    el.innerHTML = `<p class="text-red-600">Ошибка: ${escapeHtml(site.metrika.error)}</p>`;
+    return;
+  }
+  const goals = site.metrika.data.goals || [];
+  if (goals.length === 0) {
+    el.innerHTML = '<p class="text-slate-500">Цели не выбраны — настройте в разделе «Сайты» («Загрузить список целей»), чтобы видеть, сколько визитов доходит до заявки.</p>';
+    return;
+  }
+  el.innerHTML = goals
+    .map(
+      (g) => `
+    <div class="flex items-center justify-between border-b border-slate-100 py-1">
+      <span>${escapeHtml(g.name)}</span>
+      <span><b>${fmtNum(g.reaches)}</b> <span class="text-slate-400">(${g.conversionRatePct}% визитов)</span></span>
+    </div>`
+    )
+    .join('');
+}
+
 function renderSiteDetailLists(site) {
   const brokenEl = $('detail-broken-pages');
   const cannibEl = $('detail-cannibalization');
@@ -660,6 +739,7 @@ function openSiteDetail(siteId) {
   $('site-detail-title').textContent = site.name;
   renderSiteDetailKpis(site);
   renderSiteDetailCharts(site);
+  renderSiteGoals(site);
   renderSiteDetailLists(site);
   $('site-detail-modal').style.display = 'flex';
 }
