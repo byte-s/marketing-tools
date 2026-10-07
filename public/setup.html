@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Первичная настройка — Marketing Tools</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center">
+  <div class="card w-full max-w-sm">
+    <h1 class="text-lg font-semibold mb-1">Создание администратора</h1>
+    <p class="text-sm text-slate-500 mb-4">Это разовая настройка — задайте логин и пароль для входа в приложение.</p>
+
+    <label class="field-label">Логин</label>
+    <input id="username" class="field-input" autocomplete="username" />
+    <label class="field-label">Пароль (не короче 8 символов)</label>
+    <input id="password" type="password" class="field-input" autocomplete="new-password" />
+    <label class="field-label">Повтор пароля</label>
+    <input id="password2" type="password" class="field-input" autocomplete="new-password" />
+
+    <button id="setup-btn" class="btn-primary w-full mt-4">Создать и войти</button>
+    <p id="setup-error" class="text-sm text-red-600 mt-3"></p>
+  </div>
+
+  <script>
+    function $(id) { return document.getElementById(id); }
+
+    async function doSetup() {
+      const username = $('username').value.trim();
+      const password = $('password').value;
+      const password2 = $('password2').value;
+      $('setup-error').textContent = '';
+      if (!username || !password) {
+        $('setup-error').textContent = 'Укажите логин и пароль';
+        return;
+      }
+      if (password !== password2) {
+        $('setup-error').textContent = 'Пароли не совпадают';
+        return;
+      }
+      const btn = $('setup-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Ошибка настройки');
+        window.location.href = '/';
+      } catch (err) {
+        $('setup-error').textContent = err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    $('setup-btn').addEventListener('click', doSetup);
+    $('password2').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSetup(); });
+
+    // Если администратор уже настроен — эта страница больше не нужна.
+    fetch('/api/auth/status').then((r) => r.json()).then((s) => {
+      if (s.adminConfigured) window.location.href = s.authenticated ? '/' : '/login';
+    });
+  </script>
+</body>
+</html>

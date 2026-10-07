@@ -1,0 +1,20 @@
+{
+  "name": "marketing-tools",
+  "version": "1.0.0",
+  "description": "Сбор данных из Bitrix24, Яндекс.Метрики и Яндекс.Директа с анализом через OpenAI",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cheerio": "^1.2.0",
+    "cookie-session": "^2.1.1",
+    "express": "^4.22.3"
+  }
+}

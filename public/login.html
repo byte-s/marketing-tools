@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Вход — Marketing Tools</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center">
+  <div class="card w-full max-w-sm">
+    <h1 class="text-lg font-semibold mb-1">Marketing Tools</h1>
+    <p class="text-sm text-slate-500 mb-4">Войдите, чтобы продолжить</p>
+
+    <label class="field-label">Логин</label>
+    <input id="username" class="field-input" autocomplete="username" />
+    <label class="field-label">Пароль</label>
+    <input id="password" type="password" class="field-input" autocomplete="current-password" />
+
+    <button id="login-btn" class="btn-primary w-full mt-4">Войти</button>
+    <p id="login-error" class="text-sm text-red-600 mt-3"></p>
+  </div>
+
+  <script>
+    function $(id) { return document.getElementById(id); }
+
+    async function doLogin() {
+      const username = $('username').value.trim();
+      const password = $('password').value;
+      $('login-error').textContent = '';
+      if (!username || !password) {
+        $('login-error').textContent = 'Укажите логин и пароль';
+        return;
+      }
+      const btn = $('login-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Ошибка входа');
+        window.location.href = '/';
+      } catch (err) {
+        $('login-error').textContent = err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    $('login-btn').addEventListener('click', doLogin);
+    $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
+    // Если администратор ещё не настроен — отправляем на страницу первичной настройки.
+    fetch('/api/auth/status').then((r) => r.json()).then((s) => {
+      if (!s.adminConfigured) window.location.href = '/setup';
+      else if (s.authenticated) window.location.href = '/';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Marketing Tools</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+  <header class="bg-slate-900 text-white px-4 py-2 flex items-center justify-between gap-3 shrink-0 flex-wrap">
+    <h1 class="text-base font-semibold whitespace-nowrap">Marketing Tools</h1>
+    <div class="flex items-center gap-2 flex-wrap text-sm">
+      <input type="date" id="dash-from" class="field-input-sm" />
+      <span class="text-slate-400">—</span>
+      <input type="date" id="dash-to" class="field-input-sm" />
+      <button id="dash-refresh" class="btn-primary-sm">Обновить</button>
+      <select id="dash-auto" class="field-input-sm">
+        <option value="0">Автообновление: выкл</option>
+        <option value="60">1 мин</option>
+        <option value="300">5 мин</option>
+        <option value="900">15 мин</option>
+      </select>
+      <span id="dash-updated" class="text-xs text-slate-400 whitespace-nowrap"></span>
+      <button id="open-settings" class="btn-secondary-sm" title="Настройки">⚙ Настройки</button>
+      <button id="logout-btn" class="btn-secondary-sm" title="Выйти">Выйти</button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 min-h-0">
+
+    <main id="dashboard-pane" class="flex-1 min-w-0 overflow-y-auto p-3 space-y-3">
+      <div id="dash-kpis" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2"></div>
+
+      <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div class="card p-3">
+          <h2 class="card-title-sm">Директ: расход по кампаниям</h2>
+          <canvas id="chart-direct-cost" height="150"></canvas>
+        </div>
+        <div class="card p-3">
+          <h2 class="card-title-sm">Директ: конверсии по кампаниям</h2>
+          <canvas id="chart-direct-conversions" height="150"></canvas>
+        </div>
+        <div class="card p-3">
+          <h2 class="card-title-sm">Bitrix24: воронка по стадиям</h2>
+          <canvas id="chart-b24-funnel" height="150"></canvas>
+        </div>
+        <div class="card p-3">
+          <h2 class="card-title-sm">Bitrix24: лиды по источникам</h2>
+          <canvas id="chart-b24-leads-source" height="150"></canvas>
+        </div>
+        <div class="card p-3">
+          <h2 class="card-title-sm">Bitrix24: сделки по источникам</h2>
+          <canvas id="chart-b24-deals-source" height="150"></canvas>
+        </div>
+      </div>
+
+      <div id="dash-sites" class="grid lg:grid-cols-2 gap-3"></div>
+    </main>
+
+    <aside class="w-full md:w-[380px] lg:w-[440px] shrink-0 border-l border-slate-200 bg-white flex flex-col min-h-0">
+      <div class="px-3 py-2 border-b border-slate-200 flex items-center justify-between shrink-0">
+        <h2 class="text-sm font-semibold">AI-аналитик</h2>
+        <button id="chat-clear" class="text-xs text-slate-400 underline">Очистить историю</button>
+      </div>
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-3 text-sm"></div>
+      <div class="border-t border-slate-200 p-2 shrink-0">
+        <div class="flex gap-2 items-end">
+          <textarea id="chat-input" rows="2" class="field-input flex-1" placeholder="Спросите про данные: «что с конверсией за неделю?», «есть ли битые страницы?»…"></textarea>
+          <button id="chat-send" class="btn-primary shrink-0">Спросить</button>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">ИИ видит текущие данные по всем источникам и сайтам в реальном времени.</p>
+      </div>
+    </aside>
+
+  </div>
+
+  <div id="settings-modal" class="fixed inset-0 bg-black/40 items-start justify-center z-50 overflow-y-auto py-8" style="display: none">
+    <div class="bg-white rounded-lg max-w-3xl w-full mx-4 p-6 space-y-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Настройки</h2>
+        <button id="close-settings" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Bitrix24</h2>
+        <label class="field-label">Webhook URL (входящий, напр. https://ваш.bitrix24.ru/rest/1/xxxxxxxx/)</label>
+        <input id="bitrix24_webhook_url" class="field-input" placeholder="https://company.bitrix24.ru/rest/1/xxxxxxxx/" />
+        <div class="flex items-center justify-between mt-3">
+          <label class="field-label mt-0">Воронки для анализа</label>
+          <button id="b24-load-funnels" class="text-xs text-blue-600 underline">Загрузить список воронок</button>
+        </div>
+        <div id="b24-funnels-list" class="text-sm space-y-1 border border-slate-200 rounded p-2 bg-slate-50">
+          <p class="text-slate-400 text-xs">Сначала сохраните webhook URL, затем нажмите «Загрузить список воронок».</p>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Если ничего не выбрано — анализируются все воронки.</p>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Яндекс.Метрика</h2>
+        <label class="field-label">OAuth-токен (общий для всех счётчиков)</label>
+        <input id="metrika_token" class="field-input" placeholder="OAuth токен" />
+        <p class="text-xs text-slate-400 mt-2">ID счётчика указывается отдельно для каждого сайта ниже, в разделе «Сайты».</p>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Яндекс.Директ</h2>
+        <label class="field-label">OAuth-токен</label>
+        <input id="direct_token" class="field-input" placeholder="OAuth токен" />
+        <label class="field-label">Client-Login (для агентских аккаунтов, необязательно)</label>
+        <input id="direct_login" class="field-input" placeholder="login" />
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">Аудит сайтов — общие настройки</h2>
+        <label class="field-label">Google PageSpeed API-ключ (необязательно, увеличивает лимит запросов)</label>
+        <input id="pagespeed_api_key" class="field-input" placeholder="необязательно" />
+        <p class="text-xs text-slate-400 mt-2">Список URL и конкурентов для аудита задаётся отдельно для каждого сайта ниже.</p>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">OpenAI</h2>
+        <label class="field-label">API-ключ</label>
+        <input id="openai_api_key" class="field-input" placeholder="sk-..." />
+        <label class="field-label">Base URL (необязательно — для прокси, Azure-совместимых или других OpenAI-совместимых API)</label>
+        <input id="openai_base_url" class="field-input" placeholder="https://api.openai.com/v1" />
+        <label class="field-label">Модель</label>
+        <input id="openai_model" class="field-input" placeholder="gpt-4o-mini" />
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="save-settings" class="btn-primary">Сохранить настройки</button>
+        <span id="settings-status" class="text-sm text-slate-500"></span>
+      </div>
+
+      <hr class="border-slate-200" />
+
+      <div class="card">
+        <h2 class="card-title">Смена пароля</h2>
+        <label class="field-label">Текущий пароль</label>
+        <input id="pw-current" type="password" class="field-input" autocomplete="current-password" />
+        <label class="field-label">Новый пароль (не короче 8 символов)</label>
+        <input id="pw-new" type="password" class="field-input" autocomplete="new-password" />
+        <div class="flex items-center gap-3 mt-3">
+          <button id="pw-save" class="btn-primary">Сменить пароль</button>
+          <span id="pw-status" class="text-sm text-slate-500"></span>
+        </div>
+      </div>
+
+      <hr class="border-slate-200" />
+
+      <div class="card">
+        <h2 class="card-title">Сайты</h2>
+        <p class="text-sm text-slate-500 mb-3">Каждый сайт — свой счётчик Яндекс.Метрики и свой набор страниц для SEO-аудита. Bitrix24 и Директ общие для всех сайтов.</p>
+        <div id="sites-list" class="space-y-2"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title" id="site-form-title">Добавить сайт</h2>
+        <input type="hidden" id="site-form-id" />
+        <label class="field-label">Название</label>
+        <input id="site-form-name" class="field-input" placeholder="Например: Основной сайт" />
+        <label class="field-label">ID счётчика Яндекс.Метрики</label>
+        <input id="site-form-counter" class="field-input" placeholder="12345678" />
+        <label class="field-label">URL своих страниц (через запятую или с новой строки)</label>
+        <textarea id="site-form-own-urls" class="field-input" rows="3" placeholder="https://site.ru/, https://site.ru/about"></textarea>
+        <label class="field-label">Или ссылка на sitemap.xml</label>
+        <input id="site-form-sitemap" class="field-input" placeholder="https://site.ru/sitemap.xml" />
+        <label class="field-label">URL конкурентов (для сравнения)</label>
+        <textarea id="site-form-competitors" class="field-input" rows="2" placeholder="https://competitor.ru/"></textarea>
+
+        <div class="flex items-center justify-between mt-3">
+          <label class="field-label mt-0">Источники CRM (Bitrix24), относящиеся к этому сайту</label>
+          <button id="site-load-sources" class="text-xs text-blue-600 underline">Загрузить список источников</button>
+        </div>
+        <div id="site-sources-list" class="text-sm space-y-1 border border-slate-200 rounded p-2 bg-slate-50 max-h-48 overflow-y-auto">
+          <p class="text-slate-400 text-xs">Нажмите «Загрузить список источников», чтобы выбрать, какие лиды/сделки Bitrix24 относятся к этому сайту.</p>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Если не выбрано — раздел CRM в детальном дашборде сайта будет недоступен.</p>
+
+        <div class="flex gap-2 mt-3">
+          <button id="site-form-save" class="btn-primary">Сохранить сайт</button>
+          <button id="site-form-cancel" class="btn-secondary hidden">Отменить редактирование</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="site-detail-modal" class="fixed inset-0 bg-black/40 items-start justify-center z-50 overflow-y-auto py-8" style="display: none">
+    <div class="bg-white rounded-lg max-w-5xl w-full mx-4 p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold" id="site-detail-title">Сайт</h2>
+        <button id="close-site-detail" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+      </div>
+
+      <div id="site-detail-kpis" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+
+      <div class="grid md:grid-cols-2 gap-3">
+        <div class="card p-3">
+          <h3 class="card-title-sm">Визиты по дням</h3>
+          <canvas id="detail-chart-visits" height="140"></canvas>
+        </div>
+        <div class="card p-3">
+          <h3 class="card-title-sm">Источники трафика (Метрика)</h3>
+          <canvas id="detail-chart-traffic-sources" height="140"></canvas>
+        </div>
+        <div class="card p-3">
+          <h3 class="card-title-sm">Топ страниц по просмотрам</h3>
+          <canvas id="detail-chart-top-pages" height="140"></canvas>
+        </div>
+        <div class="card p-3">
+          <h3 class="card-title-sm">Воронка сделок сайта (CRM)</h3>
+          <canvas id="detail-chart-funnel" height="140"></canvas>
+        </div>
+        <div class="card p-3">
+          <h3 class="card-title-sm">Сделки по источникам (CRM)</h3>
+          <canvas id="detail-chart-deals-source" height="140"></canvas>
+        </div>
+        <div class="card p-3">
+          <h3 class="card-title-sm">Лиды по источникам (CRM)</h3>
+          <canvas id="detail-chart-leads-source" height="140"></canvas>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-3">
+        <div class="card p-3">
+          <h3 class="card-title-sm">Проблемные страницы (код ответа ≠ 200)</h3>
+          <div id="detail-broken-pages" class="text-xs space-y-1 max-h-48 overflow-y-auto"></div>
+        </div>
+        <div class="card p-3">
+          <h3 class="card-title-sm">Каннибализация — топ похожих пар</h3>
+          <div id="detail-cannibalization" class="text-xs space-y-1 max-h-48 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <div class="card p-3">
+        <h3 class="card-title-sm">Скорость загрузки (выборка страниц)</h3>
+        <div id="detail-speed" class="text-xs space-y-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
